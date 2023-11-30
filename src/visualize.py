@@ -1,6 +1,7 @@
 import os
 
 import matplotlib
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
@@ -11,7 +12,7 @@ def main() -> None:
     os.makedirs(root("visualizations"), exist_ok=True)
     matplotlib.use("TkAgg")
     matplotlib.rcParams.update({
-        "figure.dpi": 227,
+        "font.size": 14,
         "text.usetex": True,
         "text.latex.preamble": r"\usepackage{amsmath}"
     })
@@ -24,7 +25,7 @@ def main() -> None:
 
 def visualize_n_trend() -> None:
     """
-    Produce PNG image plot of experimental results for Figure 1(a).
+    Produce PDF image plot of experimental results for Figure 1(a).
     """
     df = pd.read_csv(root("results/n_trend.csv"), sep=",", usecols=lambda x: x != "run")
     g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
@@ -36,6 +37,10 @@ def visualize_n_trend() -> None:
         plt.fill_between(x, mean - std, y2=mean + std, color=color, alpha=0.3)
         plt.plot(x, mean, color=color, label=label)
 
+    y = 10 / np.sqrt(x)
+    plt.plot(x, y, color="grey", linestyle="dashed")
+    plt.text(1e5, 2.5e-2, r"slope = $-1/2$", color="grey", rotation=-21, ha="center", va="center")
+
     plt.xlabel(r"$n$")
     plt.ylabel(r"$\left\lVert \hat{\theta}_\lambda - \theta_* \right\rVert$")
     plt.legend()
@@ -46,13 +51,13 @@ def visualize_n_trend() -> None:
     plt.grid()
 
     plt.tight_layout()
-    plt.savefig(root("visualizations/n_trend.png"))
+    plt.savefig(root("visualizations/n_trend.pdf"))
     plt.close()
 
 
 def visualize_n_lambda_ridge_trend() -> None:
     """
-    Produce PNG image plot of experimental results for Figure 1(b).
+    Produce PDF image plot of experimental results for Figure 1(b).
     """
     df = pd.read_csv(root("results/n_lambda_ridge_trend.csv"), sep=",", usecols=lambda x: x != "run")
     g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
@@ -78,13 +83,13 @@ def visualize_n_lambda_ridge_trend() -> None:
     plt.grid()
 
     plt.tight_layout()
-    plt.savefig(root("visualizations/n_lambda_ridge_trend.png"))
+    plt.savefig(root("visualizations/n_lambda_ridge_trend.pdf"))
     plt.close()
 
 
 def visualize_s_trend() -> None:
     """
-    Produce PNG image plot of experimental results for Figure 1(c).
+    Produce PDF image plot of experimental results for Figure 1(c).
     """
     df = pd.read_csv(root("results/s_trend.csv"), sep=",", usecols=lambda x: x != "run")
     g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
@@ -103,13 +108,13 @@ def visualize_s_trend() -> None:
     plt.grid()
 
     plt.tight_layout()
-    plt.savefig(root("visualizations/s_trend.png"))
+    plt.savefig(root("visualizations/s_trend.pdf"))
     plt.close()
 
 
 def visualize_d_trend() -> None:
     """
-    Produce PNG image plot of experimental results for Figure 1(d).
+    Produce PDF image plot of experimental results for Figure 1(d).
     """
     df = pd.read_csv(root("results/d_trend.csv"), sep=",", usecols=lambda x: x != "run")
     g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
@@ -128,7 +133,7 @@ def visualize_d_trend() -> None:
     plt.grid()
 
     plt.tight_layout()
-    plt.savefig(root("visualizations/d_trend.png"))
+    plt.savefig(root("visualizations/d_trend.pdf"))
     plt.close()
 
 

@@ -25,7 +25,7 @@ def main() -> None:
 
     # Run simulations and produce CSV results file for Figure 1(b).
     run_experiment("n_lambda_ridge_trend", {
-        "d": 10, "s": 5, "delta": 0.001, "create_models": [
+        "d": 10, "s": 5, "delta": None, "create_models": [
             lambda d, n, s, delta, lam=lam: Ridge(alpha=n * lam, fit_intercept=False, max_iter=1000000, random_state=1731)
             for lam in np.logspace(-3, -1, num=3)
         ]
