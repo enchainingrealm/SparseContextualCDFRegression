@@ -1,11 +1,12 @@
 import csv
+import functools
 import os
 import random
 from math import sqrt, log
 from typing import List, Dict, Any, Iterable, Callable
 
 import numpy as np
-from sklearn.linear_model import Lasso, Ridge
+from sklearn.linear_model import Lasso, Ridge, ElasticNet
 # noinspection PyProtectedMember
 from sklearn.linear_model._base import LinearModel
 
@@ -19,26 +20,57 @@ def main() -> None:
     os.makedirs(root("results"), exist_ok=True)
 
     # Run simulations and produce CSV results file for Figure 1(a).
-    run_experiment("n_trend", {
-        "d": 10, "s": 5, "delta": 0.001, "create_models": [optimal_ridge, optimal_lasso]
+    run_experiment("n_fixed", {
+        "d": 10, "s": 5, "delta": 0.001, "design": "fixed",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(5e-3)]
     }, "n", np.logspace(4, 6, num=100, dtype=int))
 
     # Run simulations and produce CSV results file for Figure 1(b).
-    run_experiment("n_lambda_ridge_trend", {
-        "d": 10, "s": 5, "delta": None, "create_models": [
-            lambda d, n, s, delta, lam=lam: Ridge(alpha=n * lam, fit_intercept=False, max_iter=1000000, random_state=1731)
-            for lam in np.logspace(-3, -1, num=3)
-        ]
+    run_experiment("lambda_ridge_fixed", {
+        "d": 10, "s": 5, "delta": None, "design": "fixed",
+        "create_models": [ridge(lam) for lam in np.logspace(-3, -1, num=3)]
     }, "n", np.logspace(4, 6, num=100, dtype=int))
 
     # Run simulations and produce CSV results file for Figure 1(c).
-    run_experiment("s_trend", {
-        "d": 100, "n": 100000, "delta": 0.001, "create_models": [optimal_ridge, optimal_lasso]
+    run_experiment("s_fixed", {
+        "d": 100, "n": 100000, "delta": 0.001, "design": "fixed",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(1e-3)]
     }, "s", range(1, 31))
 
     # Run simulations and produce CSV results file for Figure 1(d).
-    run_experiment("d_trend", {
-        "n": 100000, "s": 10, "delta": 0.001, "create_models": [optimal_ridge, optimal_lasso]
+    run_experiment("d_fixed", {
+        "n": 100000, "s": 10, "delta": 0.001, "design": "fixed",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(5e-3)]
+    }, "d", range(10, 101))
+
+    # Run simulations and produce CSV results file for Figure 1(e).
+    run_experiment("lambda2_elasticnet_fixed", {
+        "d": 100, "n": 100000, "delta": 0.001, "design": "fixed",
+        "create_models": [elastic_net(lam_2) for lam_2 in np.logspace(-4.0, -2.5, num=4)]
+    }, "s", range(1, 31))
+
+    # Run simulations and produce CSV results file for Figure 2(a).
+    run_experiment("n_random", {
+        "d": 10, "s": 5, "delta": 0.001, "design": "random",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(1e-2)]
+    }, "n", np.logspace(4, 6, num=100, dtype=int))
+
+    # Run simulations and produce CSV results file for Figure 2(b).
+    run_experiment("s_random", {
+        "d": 100, "n": 100000, "delta": 0.001, "design": "random",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(1e-2)]
+    }, "s", range(1, 31))
+
+    # Run simulations and produce CSV results file for Figure 2(c).
+    run_experiment("d_random", {
+        "n": 100000, "s": 10, "delta": 0.001, "design": "random",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(1e-2)]
+    }, "d", range(10, 101))
+
+    # Run simulations and produce CSV results file for Figure 2(d).
+    run_experiment("lambda2_elasticnet_random", {
+        "n": 100000, "s": 10, "delta": 0.001, "design": "random",
+        "create_models": [elastic_net(lam_2) for lam_2 in np.logspace(-2.5, -1.0, num=4)]
     }, "d", range(10, 101))
 
 
@@ -70,7 +102,7 @@ def run_experiment(name: str, cfg: Dict[str, Any], sweep_key: str, sweep_values:
                 csv_file.flush()
 
 
-def run_trial(d: int, n: int, s: int, delta: float, create_models: List[ModelConstructor]) -> List[float]:
+def run_trial(d: int, n: int, s: int, delta: float, design: str, create_models: List[ModelConstructor]) -> List[float]:
     """
     Construct context vectors, sample response variables, perform CDF regression, and compute estimation errors based on
     the given hyperparameters as defined in Theorem 1.
@@ -78,10 +110,13 @@ def run_trial(d: int, n: int, s: int, delta: float, create_models: List[ModelCon
     :param n: sample size
     :param s: sparsity (l0-norm) of the true parameter
     :param delta: failure probability
+    :param design: data generation process for context vectors; "fixed" or "random"
     :param create_models: constructors for models to compute estimation errors of
     """
+    assert design in {"fixed", "random"}
+
     theta_true = random_sparse_pmf(d, s)
-    x_list = construct_x_j_list(n, d)
+    x_list = fixed_x_j_list(n, d) if design == "fixed" else random_x_j_list(n, d)
     y_list = [sample_y_j(theta_true, x_j) for x_j in x_list]
 
     A = np.stack(x_list)
@@ -105,9 +140,10 @@ def random_sparse_pmf(d: int, s: int) -> np.ndarray:
     return theta
 
 
-def construct_x_j_list(n: int, d: int) -> List[np.ndarray]:
+@functools.lru_cache(maxsize=1)   # don't recompute deterministic context vectors for successive trials
+def fixed_x_j_list(n: int, d: int) -> List[np.ndarray]:
     """
-    Construct context vectors according to the procedure described in Section 8.
+    Construct context vectors according to the fixed design procedure described in Section 5.
     :param n: sample size
     :param d: dimension of the CDF basis
     """
@@ -138,6 +174,15 @@ def construct_x_j_list(n: int, d: int) -> List[np.ndarray]:
     return x_list
 
 
+def random_x_j_list(n: int, d: int) -> List[np.ndarray]:
+    """
+    Sample n random context vectors, each containing d Bernoulli parameters.
+    :param n: sample size
+    :param d: dimension of the CDF basis
+    """
+    return list(np.random.rand(n, d))
+
+
 def sample_y_j(theta_true: np.ndarray, x_j: np.ndarray) -> int:
     """
     Sample a response variable according to the Bernoulli CDF basis described in Section 8.
@@ -158,6 +203,18 @@ def optimal_ridge(d: int, n: int, s: int, delta: float) -> Ridge:
     return Ridge(alpha=n * lam, fit_intercept=False, max_iter=1000000, random_state=1731)
 
 
+def ridge(lam: float) -> ModelConstructor:
+    """
+    Return a constructor for a ridge regression object (using the loss formulation in Equation 1) with the given
+    regularization hyperparameter.
+    :param lam: the regularization hyperparameter
+    """
+    # noinspection PyUnusedLocal
+    def constructor(d: int, n: int, s: int, delta: float) -> Ridge:
+        return Ridge(alpha=n * lam, fit_intercept=False, max_iter=1000000, random_state=1731)
+    return constructor
+
+
 # noinspection PyUnusedLocal
 def optimal_lasso(d: int, n: int, s: int, delta: float) -> Lasso:
     """
@@ -167,6 +224,24 @@ def optimal_lasso(d: int, n: int, s: int, delta: float) -> Lasso:
     lam = 4 * sqrt(2 / n * log(2 * d / delta))
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html
     return Lasso(alpha=lam / 2, fit_intercept=False, max_iter=1000000, random_state=1731)
+
+
+def elastic_net(lam_2: float) -> ModelConstructor:
+    """
+    Return a constructor for an elastic net regression object (using the loss formulation in Equation 2) with
+    l1-regularization hyperparameter lambda_1 = 4 sqrt(2/n log(2d/delta)), as stated in Theorem 3, and the given
+    l2-regularization hyperparameter.
+    :param lam_2: the l2-regularization hyperparameter
+    """
+    # noinspection PyUnusedLocal
+    def constructor(d: int, n: int, s: int, delta: float) -> ElasticNet:
+        lam_1 = 4 * sqrt(2 / n * log(2 * d / delta))
+        # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html
+        return ElasticNet(
+            alpha=lam_1 / 2 + lam_2, l1_ratio=lam_1 / (lam_1 + 2 * lam_2), fit_intercept=False, max_iter=1000000,
+            random_state=1731
+        )
+    return constructor
 
 
 if __name__ == "__main__":
