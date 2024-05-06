@@ -20,8 +20,8 @@ def main() -> None:
     visualize_n_fixed()
     visualize_lambda_ridge_fixed()
     visualize_s_fixed()
-    visualize_d_fixed()
     visualize_lambda2_elasticnet_fixed()
+    visualize_d_fixed()
     visualize_n_random()
     visualize_s_random()
     visualize_d_random()
@@ -119,36 +119,9 @@ def visualize_s_fixed() -> None:
     plt.close()
 
 
-def visualize_d_fixed() -> None:
-    """
-    Produce PDF image plot of experimental results for Figure 1(d).
-    """
-    df = pd.read_csv(root("results/d_fixed.csv"), sep=",", usecols=lambda x: x != "run")
-    g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
-
-    x = g["sweep_value"]
-    for i, (color, label) in enumerate([
-        ("blue", "Ridge"), ("red", "Lasso"), ("green", r"Elastic Net ($\lambda_2 = 5 \times 10^{-3}$)")
-    ], 1):
-        mean = g[f"error_{i}"]["mean"]
-        std = g[f"error_{i}"]["std"]
-        plt.fill_between(x, mean - std, y2=mean + std, color=color, alpha=0.3)
-        plt.plot(x, mean, color=color, label=label)
-
-    plt.xlabel(r"$d$")
-    plt.ylabel(r"$\left\lVert \hat{\theta}_{\lambda(_1, \lambda_2)} - \theta_* \right\rVert$")
-    plt.legend()
-    plt.xlim([10, 100])
-    plt.grid()
-
-    plt.tight_layout()
-    plt.savefig(root("visualizations/d_fixed.pdf"))
-    plt.close()
-
-
 def visualize_lambda2_elasticnet_fixed() -> None:
     """
-    Produce PDF image plot of experimental results for Figure 1(e).
+    Produce PDF image plot of experimental results for Figure 1(d).
     """
     df = pd.read_csv(root("results/lambda2_elasticnet_fixed.csv"), sep=",", usecols=lambda x: x != "run")
     g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
@@ -171,6 +144,33 @@ def visualize_lambda2_elasticnet_fixed() -> None:
 
     plt.tight_layout()
     plt.savefig(root("visualizations/lambda2_elasticnet_fixed.pdf"))
+    plt.close()
+
+
+def visualize_d_fixed() -> None:
+    """
+    Produce PDF image plot of experimental results for Figure 1(e).
+    """
+    df = pd.read_csv(root("results/d_fixed.csv"), sep=",", usecols=lambda x: x != "run")
+    g = df.groupby(by="sweep_value", sort=True).agg(["mean", "std"]).reset_index()
+
+    x = g["sweep_value"]
+    for i, (color, label) in enumerate([
+        ("blue", "Ridge"), ("red", "Lasso"), ("green", r"Elastic Net ($\lambda_2 = 5 \times 10^{-3}$)")
+    ], 1):
+        mean = g[f"error_{i}"]["mean"]
+        std = g[f"error_{i}"]["std"]
+        plt.fill_between(x, mean - std, y2=mean + std, color=color, alpha=0.3)
+        plt.plot(x, mean, color=color, label=label)
+
+    plt.xlabel(r"$d$")
+    plt.ylabel(r"$\left\lVert \hat{\theta}_{\lambda(_1, \lambda_2)} - \theta_* \right\rVert$")
+    plt.legend()
+    plt.xlim([10, 100])
+    plt.grid()
+
+    plt.tight_layout()
+    plt.savefig(root("visualizations/d_fixed.pdf"))
     plt.close()
 
 

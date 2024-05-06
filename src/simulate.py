@@ -38,16 +38,16 @@ def main() -> None:
     }, "s", range(1, 31))
 
     # Run simulations and produce CSV results file for Figure 1(d).
-    run_experiment("d_fixed", {
-        "n": 100000, "s": 10, "delta": 0.001, "design": "fixed",
-        "create_models": [optimal_ridge, optimal_lasso, elastic_net(5e-3)]
-    }, "d", range(10, 101))
-
-    # Run simulations and produce CSV results file for Figure 1(e).
     run_experiment("lambda2_elasticnet_fixed", {
         "d": 100, "n": 100000, "delta": 0.001, "design": "fixed",
         "create_models": [elastic_net(lam_2) for lam_2 in np.logspace(-4.0, -2.5, num=4)]
     }, "s", range(1, 31))
+
+    # Run simulations and produce CSV results file for Figure 1(e).
+    run_experiment("d_fixed", {
+        "n": 100000, "s": 10, "delta": 0.001, "design": "fixed",
+        "create_models": [optimal_ridge, optimal_lasso, elastic_net(5e-3)]
+    }, "d", range(10, 101))
 
     # Run simulations and produce CSV results file for Figure 2(a).
     run_experiment("n_random", {
